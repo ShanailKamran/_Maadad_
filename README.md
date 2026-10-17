@@ -1,4 +1,4 @@
-# Kaam Lahore (کام لاہور)
+# Maadad Lahore
 
 > **Lahore-only open-bid marketplace for independent local services.**  
 > Pilot categories: **Plumbing** & **Electrical Work**.
