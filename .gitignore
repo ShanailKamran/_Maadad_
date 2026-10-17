@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+.env
+.env.*
+!.env.example
+# Private uploads (job photos, identity documents) must never be committed.
+storage-private
+*.tsbuildinfo
+next-env.d.ts
+
+.vercel
