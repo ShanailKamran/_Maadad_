@@ -109,9 +109,9 @@ export function completionCode(jobId: string): string {
 }
 
 /** Customer accepts exactly one bid. Atomic: award, reject others, create booking, notify. */
-export async function acceptBid(user: SessionUser, bidId: string): Promise<{ bookingId: string }> {
+export async function acceptBid(user: SessionUser, bidId: string, exactAddress?: string): Promise<{ bookingId: string }> {
   if (!(await isPostgresAvailable())) {
-    return store.acceptBid(user.id, bidId);
+    return store.acceptBid(user.id, bidId, exactAddress);
   }
   return tx(async (c) => {
     const b = await one<{ job_id: string; worker_id: string; status: string }>("SELECT job_id, worker_id, status FROM bids WHERE id=$1", [bidId], c);
@@ -124,6 +124,14 @@ export async function acceptBid(user: SessionUser, bidId: string): Promise<{ boo
     if (b.status !== "active") throw new AppError("That bid is no longer active.");
     const w = await one<{ account_status: string }>("SELECT account_status FROM users WHERE id=$1", [b.worker_id], c);
     if (w?.account_status !== "active") throw new AppError("That worker's account is currently restricted.");
+
+    if (exactAddress !== undefined && exactAddress.trim().length > 0) {
+      const cleanAddress = exactAddress.trim();
+      if (cleanAddress.length < 5 || cleanAddress.length > 300) {
+        throw new AppError("Please provide your exact street address and house number (between 5 and 300 characters).", "bad_request");
+      }
+      await q("UPDATE job_private SET address_text=$2 WHERE job_id=$1", [b.job_id, cleanAddress], c);
+    }
 
     await q("UPDATE bids SET status='accepted', updated_at=now() WHERE id=$1", [bidId], c);
     await q("UPDATE bids SET status='rejected', updated_at=now() WHERE job_id=$1 AND status='active' AND id<>$2", [b.job_id, bidId], c);

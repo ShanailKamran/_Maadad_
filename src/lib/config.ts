@@ -82,10 +82,12 @@ export const storage = {
  * because no production-grade private object store is implemented in this MVP.
  */
 export function identityUploadEnabled(): boolean {
+  if (storage.driver === "supabase") return env.ENABLE_IDENTITY_UPLOAD === "true";
   return env.ENABLE_IDENTITY_UPLOAD === "true" && !isProd && storage.driver === "local";
 }
 
 export function photoUploadEnabled(): boolean {
+  if (storage.driver === "supabase") return true;
   if (storage.driver !== "local") return false;
   return !isProd || env.ALLOW_LOCAL_PHOTO_STORAGE_IN_PROD === "true";
 }

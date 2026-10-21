@@ -33,6 +33,13 @@ export async function createDraft(user: SessionUser, form: FormData): Promise<st
   if (!(await isPostgresAvailable())) {
     const openCount = store.listCustomerJobs(user.id).filter(j => ["draft", "open"].includes(j.status)).length;
     if (openCount >= 10) throw new AppError("You have too many open jobs. Close or cancel one first.");
+    const resolvedAddress =
+      v.addressText && v.addressText.trim().length >= 5
+        ? v.addressText.trim()
+        : v.landmark
+        ? `Near ${v.landmark.trim()} (Exact house details provided upon hiring)`
+        : "General area selected (Exact house address provided upon hiring)";
+
     return store.createDraft(user.id, {
       categoryId: v.categoryId,
       areaId: v.areaId,
@@ -42,7 +49,7 @@ export async function createDraft(user: SessionUser, form: FormData): Promise<st
       budgetMax: v.budgetMax ?? undefined,
       asap: v.asap,
       preferredAt: preferred,
-      addressText: v.addressText,
+      addressText: resolvedAddress,
       contactNote: v.contactNote,
       lat: v.lat ? Number(v.lat) : undefined,
       lng: v.lng ? Number(v.lng) : undefined,
@@ -77,10 +84,17 @@ export async function createDraft(user: SessionUser, form: FormData): Promise<st
     );
     const id = j!.id;
     const hasPin = v.lat && v.lng;
+    const resolvedAddress =
+      v.addressText && v.addressText.trim().length >= 5
+        ? v.addressText.trim()
+        : v.landmark
+        ? `Near ${v.landmark.trim()} (Exact house details provided upon hiring)`
+        : "General area selected (Exact house address provided upon hiring)";
+
     await q(
       `INSERT INTO job_private (job_id, address_text, contact_note, precise_point)
        VALUES ($1,$2,$3, CASE WHEN $4::float8 IS NULL THEN NULL ELSE ST_SetSRID(ST_MakePoint($5::float8,$4::float8),4326)::geography END)`,
-      [id, v.addressText, v.contactNote || null, hasPin ? Number(v.lat) : null, hasPin ? Number(v.lng) : null],
+      [id, resolvedAddress, v.contactNote || null, hasPin ? Number(v.lat) : null, hasPin ? Number(v.lng) : null],
       c,
     );
     for (const p of stored)

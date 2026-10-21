@@ -993,7 +993,7 @@ export class DomainStore {
     return out.sort((a, b) => b.updated_at.getTime() - a.updated_at.getTime());
   }
 
-  acceptBid(customerId: string, bidId: string): { bookingId: string } {
+  acceptBid(customerId: string, bidId: string, exactAddress?: string): { bookingId: string } {
     const b = this.bids.get(bidId);
     if (!b) throw new AppError("Bid not found.", "not_found");
     const j = this.jobs.get(b.job_id);
@@ -1001,6 +1001,15 @@ export class DomainStore {
     if (j.hidden_at) throw new AppError("This job is under review and can't be awarded.");
     assertTransition(j.status, "awarded", "customer");
     if (b.status !== "active") throw new AppError("That bid is no longer active.");
+
+    if (exactAddress !== undefined && exactAddress.trim().length > 0) {
+      const cleanAddress = exactAddress.trim();
+      if (cleanAddress.length < 5 || cleanAddress.length > 300) {
+        throw new AppError("Please provide your exact street address and house number (between 5 and 300 characters).", "bad_request");
+      }
+      const jp = this.jobPrivates.get(j.id);
+      if (jp) jp.address_text = cleanAddress;
+    }
 
     const now = new Date();
     // 1. Mark accepted bid

@@ -121,7 +121,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <div className="trust-strip-inner">
                 <IconShieldCheck size={14} aria-hidden="true" />
                 <span>
-                  Maddad is a bulletin board. You pay the technician directly — Maddad doesn&apos;t hold funds or guarantee work.{" "}
+                  <strong>English-first pilot (مکمل اردو ترجمہ جلد دستیاب ہوگا):</strong> Maddad is an open bulletin board. You pay the technician directly — zero platform escrow or fund holding.{" "}
                   <Link href="/payments">How it works</Link>
                 </span>
               </div>
@@ -133,7 +133,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
             <footer className="site-footer">
               <div className="site-footer-inner">
-                <span>© Maddad Lahore · Pilot for plumbing &amp; electrical jobs in Lahore only.</span>
+                <span>© Maddad Lahore · Pilot for plumbing &amp; electrical jobs in Lahore only. English-first pilot (مکمل اردو ترجمہ جلد دستیاب ہوگا).</span>
                 <span className="row" style={{ gap: 16 }}>
                   <Link href="/payments">Payments</Link>
                   <Link href="/privacy">Privacy</Link>

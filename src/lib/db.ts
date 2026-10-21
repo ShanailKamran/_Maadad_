@@ -4,11 +4,16 @@ const g = globalThis as unknown as { __kaamPool?: Pool; __pgChecked?: boolean; _
 
 function createPool(): Pool {
   const url = process.env.DATABASE_URL || "postgres://kaam:kaam_local_dev_only@127.0.0.1:5432/kaam";
+  const isSupabase =
+    url.includes("supabase.co") ||
+    url.includes("supabase.com") ||
+    process.env.DATABASE_SSL === "true";
+
   return new Pool({
     connectionString: url,
     max: 10,
-    connectionTimeoutMillis: 1000,
-    ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: true } : undefined,
+    connectionTimeoutMillis: 5000,
+    ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
   });
 }
 

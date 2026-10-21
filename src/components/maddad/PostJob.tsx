@@ -85,10 +85,8 @@ export function PostJobView({
       errs.areaId = "Please select a Lahore neighbourhood.";
     }
 
-    if (!addressText.trim()) {
-      errs.addressText = "Street address / building number is required.";
-    } else if (addressText.trim().length < 5) {
-      errs.addressText = "Address must be at least 5 characters.";
+    if (addressText.trim() && addressText.trim().length > 0 && addressText.trim().length < 3) {
+      errs.addressText = "Landmark/location note must be at least 3 characters if provided.";
     }
 
     if (timingType === "scheduled" && !preferredDate) {
@@ -389,23 +387,24 @@ export function PostJobView({
           >
             <div className="row" style={{ color: "var(--violet-300)" }}>
               <IconLock size={18} aria-hidden="true" />
-              <strong>Private Job Location (Strictly Protected)</strong>
+              <strong>Location Privacy Guarantee</strong>
             </div>
             <p className="hint" style={{ margin: 0, color: "var(--text-2)" }}>
-              This exact address is never displayed publicly. It is decrypted and unlocked <strong>only</strong> for the single technician you explicitly accept.
+              Quoting technicians see <strong>only your coarse neighbourhood</strong> (e.g. {areas.find((a) => String(a.id) === areaId)?.name || "Lahore area"}). Your exact house number and street will be shared <strong>only with the single technician you choose to hire</strong>.
             </p>
 
             <Field
               id="job-address"
-              label="Street address & house number"
-              hint="e.g. House 42-B, Street 7, Sector Y, Phase 3, DHA"
+              label="Nearby landmark or sector (Optional)"
+              hint="e.g. Near Ghalib Market, Sector Y, or Block 4. (Leave blank or add street details only if you wish)"
+              optional
               error={errors.addressText}
             >
               {(p) => (
                 <input
                   {...p}
                   type="text"
-                  placeholder="Street and house number"
+                  placeholder="e.g. Near Ghalib Market or Block C"
                   value={addressText}
                   onChange={(e) => setAddressText(e.target.value)}
                   maxLength={300}
@@ -415,15 +414,15 @@ export function PostJobView({
 
             <Field
               id="job-contact-note"
-              label="Access instruction (Optional)"
-              hint="e.g. 2nd floor, ring bell twice, guard requires verification at gate"
+              label="Access or gate instruction (Optional)"
+              hint="e.g. Ring bell twice, guard requires ID check at society gate"
               optional
             >
               {(p) => (
                 <input
                   {...p}
                   type="text"
-                  placeholder="Gate instructions or bell details"
+                  placeholder="e.g. Gate code, floor number, or parking notes"
                   value={contactNote}
                   onChange={(e) => setContactNote(e.target.value)}
                   maxLength={300}

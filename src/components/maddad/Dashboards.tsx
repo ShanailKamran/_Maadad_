@@ -59,14 +59,23 @@ export function CustomerDashboardView({
   const pastBookings = bookings.filter((b) => b.status === "completed" || b.status === "cancelled");
 
   const handleAcceptBid = async (jobId: string, bidId: string) => {
-    if (!window.confirm("Accept this bid and hire this technician? All other bids on this job will be closed.")) return;
+    const exactAddress = window.prompt(
+      "Confirm hiring this technician?\n\nEnter your exact house number, street address, and sector (this will be unlocked ONLY for this hired technician):",
+    );
+    if (exactAddress === null) return; // User cancelled
+    const cleanAddress = exactAddress.trim();
+    if (!cleanAddress || cleanAddress.length < 5) {
+      onToast("Please enter your exact house number and street (at least 5 characters) so the technician can arrive.", "error");
+      return;
+    }
     setSubmittingAction(`accept-${bidId}`);
     try {
       const fd = new FormData();
       fd.set("jobId", jobId);
       fd.set("bidId", bidId);
+      fd.set("exactAddress", cleanAddress);
       await acceptBidAction(null, fd);
-      onToast("Bid accepted! The technician has been notified and contact details are unlocked.");
+      onToast("Bid accepted! The technician has been hired and your exact address is unlocked for them.");
       window.location.reload();
     } catch {
       onToast("Failed to accept bid. Please try again.", "error");

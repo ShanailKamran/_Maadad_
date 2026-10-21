@@ -52,7 +52,7 @@ export function SettingsView({
             Sign in to manage your display name, view role permissions, or adjust platform preferences.
           </p>
           <button type="button" onClick={onNavigateAuth} className="btn btn-primary" style={{ margin: "0 auto" }}>
-            Sign In / Switch Persona
+            Sign In / Create Account
           </button>
         </div>
       </div>
@@ -128,7 +128,7 @@ export function SettingsView({
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="e.g. Tariq Mehmood"
+              placeholder="Enter your full name"
               style={{
                 flex: 1,
                 background: "var(--ink-0)",
@@ -202,6 +202,40 @@ export function SettingsView({
               Worker Active
             </span>
           </div>
+        </div>
+
+        {/* Database & Cloud Infrastructure */}
+        <div
+          style={{
+            background: "var(--ink-0)",
+            border: "1px solid var(--graphite-800)",
+            borderRadius: "var(--radius-sm)",
+            padding: "14px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-1)" }}>
+              Database &amp; Storage Architecture
+            </span>
+            <span
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: 4,
+                background: "rgba(16, 185, 129, 0.15)",
+                color: "#10b981",
+              }}
+            >
+              PostgreSQL + Supabase Cloud Ready
+            </span>
+          </div>
+          <p style={{ fontSize: "0.78rem", color: "var(--text-3)", margin: 0, lineHeight: 1.4 }}>
+            Zero-knowledge location privacy: Customer addresses and coordinates are never displayed on public feeds. Data collection, leads, and private storage are handled via Supabase cloud pipelines.
+          </p>
         </div>
 
         {/* Pilot Operating Definition */}

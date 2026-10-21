@@ -3,13 +3,20 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { storage } from "./config";
 import { AppError } from "./state";
+import {
+  isSupabaseConfigured,
+  uploadToSupabaseStorage,
+  getFromSupabaseStorage,
+  deleteFromSupabaseStorage,
+} from "./supabase";
 
 /**
  * Private file storage. Files are written OUTSIDE the Next.js public directory and are only
  * ever served through authorised route handlers (src/app/files/*), never by direct URL.
  *
- * Only the "local" driver is implemented. For production-grade private storage (S3-compatible
- * with server-side encryption + short-lived presigned URLs) implement the same functions.
+ * Supported drivers:
+ * 1. "local" (default): Private directory on server disk with traversal protection and 0o600 permissions.
+ * 2. "supabase": Private cloud object storage using Supabase Storage buckets ('job-photos', 'worker-photos', 'identity').
  */
 const root = () => path.resolve(storage.localDir);
 
@@ -40,8 +47,21 @@ export async function putPrivate(
   // The browser picker re-encodes via canvas, which strips EXIF; direct uploads with EXIF are refused.
   if (bucket !== "identity" && mime === "image/jpeg" && data.subarray(0, 65536).includes(Buffer.from("Exif\0\0", "binary")))
     throw new AppError("This photo contains location metadata. Please choose it again using the photo button so it can be cleaned.");
-  // Optional hook: if a malware-scanning service is configured, call it here before storing.
-  const key = `${bucket}/${randomUUID()}.${MIME_EXT[mime]}`;
+
+  const filename = `${randomUUID()}.${MIME_EXT[mime]}`;
+  const key = `${bucket}/${filename}`;
+
+  // If Supabase Storage is configured and chosen as the storage driver, upload to cloud bucket
+  if (storage.driver === "supabase" && isSupabaseConfigured()) {
+    try {
+      await uploadToSupabaseStorage(bucket, filename, data, mime);
+      return { key, mime };
+    } catch (err) {
+      console.warn("[Storage] Supabase storage upload failed, saving to local private fallback:", err);
+    }
+  }
+
+  // Default: local private directory storage
   const full = path.join(root(), key);
   await mkdir(path.dirname(full), { recursive: true });
   await writeFile(full, data, { mode: 0o600 });
@@ -55,9 +75,32 @@ function safePath(key: string): string {
 }
 
 export async function getPrivate(key: string): Promise<Buffer> {
+  // If Supabase driver is configured, attempt cloud download first
+  if (storage.driver === "supabase" && isSupabaseConfigured() && key.includes("/")) {
+    const slashIdx = key.indexOf("/");
+    const bucket = key.substring(0, slashIdx);
+    const filename = key.substring(slashIdx + 1);
+    try {
+      return await getFromSupabaseStorage(bucket, filename);
+    } catch (err) {
+      console.warn("[Storage] Could not fetch from Supabase, attempting local fallback:", err);
+    }
+  }
+
   return readFile(safePath(key));
 }
 
 export async function deletePrivate(key: string): Promise<void> {
-  await rm(safePath(key), { force: true });
+  if (storage.driver === "supabase" && isSupabaseConfigured() && key.includes("/")) {
+    const slashIdx = key.indexOf("/");
+    const bucket = key.substring(0, slashIdx);
+    const filename = key.substring(slashIdx + 1);
+    try {
+      await deleteFromSupabaseStorage(bucket, filename);
+    } catch {
+      // Non-blocking
+    }
+  }
+
+  await rm(safePath(key), { force: true }).catch(() => undefined);
 }

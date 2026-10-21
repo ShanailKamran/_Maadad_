@@ -5,9 +5,15 @@ import { Pool } from "pg";
 /** Versioned SQL migrations: runs migrations/*.sql in filename order, once each, each in a transaction. */
 async function main() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not set.");
+  const url = process.env.DATABASE_URL;
+  const isSupabase =
+    url.includes("supabase.co") ||
+    url.includes("supabase.com") ||
+    process.env.DATABASE_SSL === "true";
+
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: true } : undefined,
+    connectionString: url,
+    ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
   });
   await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`);
   const done = new Set((await pool.query("SELECT name FROM schema_migrations")).rows.map((r) => r.name));

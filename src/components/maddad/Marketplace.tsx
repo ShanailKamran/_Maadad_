@@ -69,13 +69,15 @@ export function RidgeLines() {
 /* ---------------------------------------------------------------- */
 export function Hero({
   user,
-  totalOpen,
+  realOpenCount,
+  sampleCount,
   onPost,
   onJoin,
   compact,
 }: {
   user: AppUser | null;
-  totalOpen: number;
+  realOpenCount: number;
+  sampleCount: number;
   onPost: () => void;
   onJoin: () => void;
   compact: boolean;
@@ -84,7 +86,7 @@ export function Hero({
     <section className={`hero ${compact ? "hero-compact" : ""}`} aria-labelledby="hero-title">
       <RidgeLines />
       <div className="hero-copy">
-        <span className="hero-eyebrow">Lahore pilot · Plumbing &amp; electrical</span>
+        <span className="hero-eyebrow">Lahore Pilot · Plumbing &amp; Electrical</span>
         <h1 id="hero-title" className="hero-title" style={{ fontSize: compact ? "clamp(1.6rem,1.2rem + 1.6vw,2.2rem)" : undefined }}>
           Describe the job. Local technicians bid. <em>You choose.</em>
         </h1>
@@ -105,7 +107,27 @@ export function Hero({
           </button>
         </div>
         <p className="meta" style={{ margin: 0 }}>
-          <strong>{plural(totalOpen, "open job")}</strong> in Lahore right now.
+          {realOpenCount === 0 ? (
+            <>
+              <strong>0 active customer jobs</strong> in Lahore right now ·{" "}
+              <button
+                type="button"
+                onClick={onPost}
+                style={{
+                  all: "unset",
+                  color: "var(--violet-300)",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  fontWeight: 700,
+                }}
+              >
+                Be the first to post a repair
+              </button>
+              {sampleCount > 0 && <span> ({sampleCount} sample demos available below)</span>}
+            </>
+          ) : (
+            <strong>{plural(realOpenCount, "real open job")} in Lahore right now.</strong>
+          )}
         </p>
       </div>
       {!compact && (
@@ -357,12 +379,14 @@ export function MarketplaceView({
   user,
   ownJobIds,
   onOpenJob,
+  onPost,
 }: {
   jobs: PublicJobItem[];
   areas: AreaOption[];
   user: AppUser | null;
   ownJobIds: Set<string>;
   onOpenJob: (j: PublicJobItem) => void;
+  onPost?: () => void;
 }) {
   const [trade, setTrade] = useState("all");
   const [area, setArea] = useState("all");
@@ -370,6 +394,11 @@ export function MarketplaceView({
   const [asap, setAsap] = useState(false);
   const [sort, setSort] = useState<Sort>("newest");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [showSamples, setShowSamples] = useState(false);
+
+  // Strictly separate real customer jobs from synthetic pilot demos
+  const realJobs = useMemo(() => jobs.filter((j) => !j.is_demo), [jobs]);
+  const sampleJobs = useMemo(() => jobs.filter((j) => j.is_demo), [jobs]);
 
   const activeFilters = (trade !== "all" ? 1 : 0) + (area !== "all" ? 1 : 0) + (asap ? 1 : 0) + (q.trim() ? 1 : 0);
   const reset = () => {
@@ -382,16 +411,16 @@ export function MarketplaceView({
   const counts = useMemo(() => {
     const byTrade: Record<string, number> = {};
     const byArea: Record<string, number> = {};
-    jobs.forEach((j) => {
+    realJobs.forEach((j) => {
       byTrade[j.category.toLowerCase()] = (byTrade[j.category.toLowerCase()] ?? 0) + 1;
       byArea[j.area] = (byArea[j.area] ?? 0) + 1;
     });
     return { byTrade, byArea };
-  }, [jobs]);
+  }, [realJobs]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const list = jobs.filter((j) => {
+    const list = realJobs.filter((j) => {
       if (trade !== "all" && j.category.toLowerCase() !== trade) return false;
       if (area !== "all" && j.area !== area) return false;
       if (asap && !j.asap) return false;
@@ -405,13 +434,13 @@ export function MarketplaceView({
       if (sort === "budget") return (b.budget_max ?? b.budget_min ?? 0) - (a.budget_max ?? a.budget_min ?? 0);
       return t(b.created_at) - t(a.created_at);
     });
-  }, [jobs, trade, area, asap, q, sort]);
+  }, [realJobs, trade, area, asap, q, sort]);
 
   const areaNames = useMemo(() => {
     const names = new Set(areas.map((a) => a.name));
-    jobs.forEach((j) => names.add(j.area));
+    realJobs.forEach((j) => names.add(j.area));
     return Array.from(names).sort();
-  }, [areas, jobs]);
+  }, [areas, realJobs]);
 
   return (
     <div className="market-layout">
@@ -437,7 +466,7 @@ export function MarketplaceView({
             </legend>
             <div className="chips">
               <button type="button" className="chip" aria-pressed={trade === "all"} onClick={() => setTrade("all")}>
-                All ({jobs.length})
+                All ({realJobs.length})
               </button>
               <button type="button" className="chip" aria-pressed={trade === "plumbing"} onClick={() => setTrade("plumbing")}>
                 <IconWrench size={14} aria-hidden="true" /> Plumbing ({counts.byTrade.plumbing ?? 0})
@@ -496,7 +525,7 @@ export function MarketplaceView({
           <input
             type="search"
             aria-label="Search jobs"
-            placeholder="Search jobs, e.g. geyser, water motor, wiring…"
+            placeholder="Search real jobs, e.g. geyser, water motor, wiring…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -509,7 +538,7 @@ export function MarketplaceView({
 
         <div className="result-bar">
           <p className="result-count" role="status" aria-live="polite">
-            {activeFilters ? `Showing ${filtered.length} of ${plural(jobs.length, "open job")}` : plural(jobs.length, "open job") + " in Lahore"}
+            {activeFilters ? `Showing ${filtered.length} of ${plural(realJobs.length, "active job")}` : plural(realJobs.length, "active job") + " in Lahore"}
           </p>
           {activeFilters > 0 && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={reset}>
@@ -518,18 +547,22 @@ export function MarketplaceView({
           )}
         </div>
 
-        {jobs.length === 0 ? (
-          <EmptyState
-            icon={<IconFileText size={22} />}
-            title="No open jobs right now"
-            action={
-              <p className="meta">
-                Be the first — post a job and nearby technicians will be notified.
-              </p>
-            }
-          >
-            New jobs appear here as customers publish them.
-          </EmptyState>
+        {realJobs.length === 0 ? (
+          <div className="plate plate-bolted" style={{ padding: "40px 24px", textAlign: "center" }}>
+            <span className="module" style={{ margin: "0 auto 16px", background: "var(--violet-soft)", color: "var(--violet-300)" }}>
+              <IconFileText size={26} aria-hidden="true" />
+            </span>
+            <h3 style={{ margin: "0 0 8px", fontSize: "1.2rem", fontWeight: 800 }}>No real customer jobs posted yet</h3>
+            <p style={{ maxWidth: 460, margin: "0 auto 18px", color: "var(--text-2)", lineHeight: 1.6, fontSize: "0.92rem" }}>
+              The pilot is live in Lahore. Describe a repair job (plumbing or electrical) to receive competitive bids from independent local technicians.
+            </p>
+            {onPost && (
+              <button type="button" className="btn btn-primary btn-lg" onClick={onPost} style={{ margin: "0 auto" }}>
+                <IconPlus size={18} aria-hidden="true" />
+                Post the first job
+              </button>
+            )}
+          </div>
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<IconSearch size={22} />}
@@ -548,6 +581,39 @@ export function MarketplaceView({
               <JobCard key={j.id} job={j} onOpen={onOpenJob} ownJob={ownJobIds.has(j.id)} />
             ))}
           </div>
+        )}
+
+        {/* Clearly Separated Sample Pilot Demonstration Jobs */}
+        {sampleJobs.length > 0 && (
+          <section className="plate plate-bolted" style={{ marginTop: 24, padding: "20px 22px" }} aria-label="Sample demonstration jobs">
+            <div className="row-between" style={{ flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <div className="row" style={{ gap: 8, marginBottom: 4 }}>
+                  <span className="pill pill-warn" style={{ fontSize: "0.72rem", textTransform: "uppercase" }}>Sample Demonstrations</span>
+                  <span className="meta">{sampleJobs.length} demonstration posts</span>
+                </div>
+                <h3 style={{ margin: "2px 0 0", fontSize: "1.05rem" }}>Explore Sample Job Posts</h3>
+                <p className="meta" style={{ margin: "2px 0 0" }}>
+                  These are synthetic demonstration posts showing how local Lahore repairs and quotes work on Maddad.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => setShowSamples((v) => !v)}
+              >
+                {showSamples ? "Hide sample jobs" : `View ${sampleJobs.length} sample jobs`}
+              </button>
+            </div>
+
+            {showSamples && (
+              <div className="job-list" style={{ marginTop: 18 }}>
+                {sampleJobs.map((j) => (
+                  <JobCard key={j.id} job={j} onOpen={onOpenJob} ownJob={false} />
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </div>
     </div>

@@ -449,14 +449,32 @@ export default async function JobPage({ params }: { params: { id: string } }) {
                     <p className="hint"><strong>Excludes:</strong> {b.exclusions}</p>
                   )}
 
-                  <div style={{ marginTop: 12 }}>
+                  <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: "var(--r-sm)", background: "var(--graphite-1)", border: "1px solid var(--line)" }}>
                     <ActionForm
                       action={acceptBidAction}
-                      confirm={`Accept this bid for ${pkr(b.amount)} from ${b.worker_name || "this worker"}? Other bids will be closed.`}
+                      confirm={`Accept this bid for ${pkr(b.amount)} from ${b.worker_name || "this technician"}? Other bids will be closed and your address will be revealed exclusively to them.`}
                     >
                       <input type="hidden" name="bidId" value={b.id} />
                       <input type="hidden" name="jobId" value={jobId} />
-                      <Submit>Accept this bid</Submit>
+                      <div className="field" style={{ marginBottom: 10 }}>
+                        <label htmlFor={`exactAddress-${b.id}`} style={{ fontSize: "0.85rem", fontWeight: 600 }}>
+                          Your exact house &amp; street address (Required to hire):
+                        </label>
+                        <input
+                          type="text"
+                          id={`exactAddress-${b.id}`}
+                          name="exactAddress"
+                          required
+                          minLength={5}
+                          maxLength={300}
+                          placeholder="e.g., House 42, Street 7, Sector C"
+                          style={{ width: "100%", padding: "8px 12px", fontSize: "0.88rem" }}
+                        />
+                        <p className="hint" style={{ margin: "4px 0 0", fontSize: "0.76rem" }}>
+                          Saved and revealed exclusively to {b.worker_name || "this technician"}. Unselected bidders will never see this.
+                        </p>
+                      </div>
+                      <Submit className="btn btn-primary btn-sm">Accept bid &amp; reveal address</Submit>
                     </ActionForm>
                   </div>
                 </div>

@@ -20,19 +20,23 @@ import {
   settingsAction,
   expandJobAction,
 } from "../actions";
+import { testSupabaseConnection, getSignups, getJobLeads } from "@/lib/supabase";
 
 export const metadata: Metadata = { title: "Admin & Moderation" };
 
 export default async function AdminDashboard() {
   const admin = await requireAdmin();
 
-  const [reports, appeals, idList, lowBids, settings, history] = await Promise.all([
+  const [reports, appeals, idList, lowBids, settings, history, supabaseStatus, signups, jobLeads] = await Promise.all([
     reportQueue("open"),
     openAppeals(),
     identityQueue(),
     lowBidJobs(),
     getSettings(),
     moderationHistory(),
+    testSupabaseConnection(),
+    getSignups(25),
+    getJobLeads(25),
   ]);
 
   return (
@@ -338,6 +342,189 @@ export default async function AdminDashboard() {
 
           <Submit>Save settings</Submit>
         </ActionForm>
+      </section>
+
+      {/* Supabase Database & Cloud Leads Hub */}
+      <section aria-labelledby="supabase-heading" style={{ marginTop: 32 }}>
+        <div className="row" style={{ alignItems: "center", marginBottom: 8 }}>
+          <h2 id="supabase-heading" style={{ margin: 0 }}>
+            Supabase Cloud Database &amp; Leads Hub
+          </h2>
+          <span
+            className="pill"
+            style={{
+              marginInlineStart: "auto",
+              background: supabaseStatus.connected
+                ? "rgba(16, 185, 129, 0.15)"
+                : supabaseStatus.configured
+                ? "rgba(245, 158, 11, 0.15)"
+                : "rgba(100, 116, 139, 0.15)",
+              color: supabaseStatus.connected
+                ? "#10b981"
+                : supabaseStatus.configured
+                ? "#f59e0b"
+                : "var(--text-3)",
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: supabaseStatus.connected
+                  ? "#10b981"
+                  : supabaseStatus.configured
+                  ? "#f59e0b"
+                  : "#64748b",
+              }}
+            />
+            {supabaseStatus.connected
+              ? `Connected (${supabaseStatus.latencyMs}ms)`
+              : supabaseStatus.configured
+              ? "Configured (Tables pending)"
+              : "Offline / In-Memory Fallback"}
+          </span>
+        </div>
+
+        <p className="hint">
+          Cloud-synced user signups, customer job requests, and technician bids captured in real-time via Supabase PostgreSQL.
+        </p>
+
+        {/* Connection Diagnostics Card */}
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="row" style={{ flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <strong>Endpoint: </strong>
+              <code style={{ fontSize: "0.85rem" }}>
+                {supabaseStatus.url || "Not configured in .env.local"}
+              </code>
+            </div>
+            <div style={{ marginInlineStart: "auto", display: "flex", gap: 8 }}>
+              <span className={`pill ${supabaseStatus.tables.signups ? "pill-ok" : "pill-warn"}`}>
+                signups: {supabaseStatus.tables.signups ? "Ready" : "Missing"}
+              </span>
+              <span className={`pill ${supabaseStatus.tables.job_leads ? "pill-ok" : "pill-warn"}`}>
+                job_leads: {supabaseStatus.tables.job_leads ? "Ready" : "Missing"}
+              </span>
+              <span className={`pill ${supabaseStatus.tables.bids_activity ? "pill-ok" : "pill-warn"}`}>
+                bids_activity: {supabaseStatus.tables.bids_activity ? "Ready" : "Missing"}
+              </span>
+            </div>
+          </div>
+
+          {supabaseStatus.error && (
+            <div style={{ marginTop: 10, padding: 8, background: "#fff5f5", borderRadius: 6, color: "#e11d48", fontSize: "0.85rem" }}>
+              <strong>Notice:</strong> {supabaseStatus.error}
+            </div>
+          )}
+
+          <details style={{ marginTop: 12 }}>
+            <summary style={{ cursor: "pointer", fontSize: "0.88rem", fontWeight: 600 }}>
+              Quick Setup Instructions for Supabase (Click to expand)
+            </summary>
+            <div style={{ marginTop: 8, fontSize: "0.85rem", lineHeight: 1.6, color: "var(--text-2)" }}>
+              <ol style={{ paddingInlineStart: 20, margin: "6px 0" }}>
+                <li>Create a free project at <a href="https://supabase.com" target="_blank" rel="noreferrer">supabase.com</a>.</li>
+                <li>Go to <strong>Project Settings &rarr; API</strong> and copy your Project URL and anon public key.</li>
+                <li>Add them to your <code>.env.local</code>:
+                  <pre style={{ background: "#1a1d20", color: "#f8fafc", padding: 8, borderRadius: 6, marginTop: 4 }}>
+{`NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOi..."
+SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOi..."`}
+                  </pre>
+                </li>
+                <li>Go to <strong>SQL Editor</strong> in Supabase and run the migration script in <code>migrations/supabase_setup.sql</code>.</li>
+              </ol>
+            </div>
+          </details>
+        </div>
+
+        {/* Captured Signups */}
+        <div style={{ marginBottom: 20 }}>
+          <h3 style={{ fontSize: "1.05rem", margin: "16px 0 8px" }}>
+            Real-time Signups &amp; Leads ({signups.length} captured)
+          </h3>
+          {signups.length === 0 ? (
+            <div className="card empty">
+              <p>No external signups captured yet. Once users register on the signup form, their details sync here instantly.</p>
+            </div>
+          ) : (
+            <div className="card" style={{ overflowX: "auto" }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Role</th>
+                    <th>Trade / Skills</th>
+                    <th>Area</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {signups.map((s, idx) => (
+                    <tr key={s.id || idx}>
+                      <td className="meta">{s.created_at ? dt(new Date(s.created_at)) : "Recent"}</td>
+                      <td><strong>{s.name}</strong></td>
+                      <td><code>{s.phone}</code></td>
+                      <td>
+                        <span className={`pill ${s.role === "technician" ? "pill-warn" : ""}`}>
+                          {s.role === "technician" ? "Technician" : "Customer"}
+                        </span>
+                      </td>
+                      <td>{s.trade || "—"}</td>
+                      <td>{s.area || "Lahore"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Captured Job Leads */}
+        <div>
+          <h3 style={{ fontSize: "1.05rem", margin: "16px 0 8px" }}>
+            Captured Job Requests &amp; Estimates ({jobLeads.length} posted)
+          </h3>
+          {jobLeads.length === 0 ? (
+            <div className="card empty">
+              <p>No job requests captured yet in Supabase.</p>
+            </div>
+          ) : (
+            <div className="card" style={{ overflowX: "auto" }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Title &amp; Category</th>
+                    <th>Area</th>
+                    <th>Budget</th>
+                    <th>Customer Phone</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jobLeads.map((j, idx) => (
+                    <tr key={j.id || idx}>
+                      <td className="meta">{j.created_at ? dt(new Date(j.created_at)) : "Recent"}</td>
+                      <td>
+                        <strong>{j.title}</strong>
+                        <div className="meta">{j.category}</div>
+                      </td>
+                      <td>{j.area}</td>
+                      <td>{j.budgetMin ? pkr(j.budgetMin) : "Negotiable"}{j.budgetMax ? ` – ${pkr(j.budgetMax)}` : ""}</td>
+                      <td><code>{j.customerPhone || "Private"}</code></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Recent Moderation History */}

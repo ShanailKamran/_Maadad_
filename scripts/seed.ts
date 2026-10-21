@@ -21,8 +21,17 @@ const AREAS: [string, string, number, number][] = [
 ];
 
 async function main() {
+  const url = process.env.DATABASE_URL;
+  const isSupabase =
+    url?.includes("supabase.co") ||
+    url?.includes("supabase.com") ||
+    process.env.DATABASE_SSL === "true";
+
   const prod = process.env.NODE_ENV === "production";
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: true } : undefined });
+  const pool = new Pool({
+    connectionString: url,
+    ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
+  });
   const city = (await pool.query(
     `INSERT INTO cities (slug, name, active) VALUES ('lahore','Lahore',true)
      ON CONFLICT (slug) DO UPDATE SET active=true RETURNING id`)).rows[0].id;

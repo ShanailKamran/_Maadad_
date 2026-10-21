@@ -20,6 +20,7 @@ import {
 import { moderate, addReportNote, closeAppeal, decideIdentity, updateSettings, adminExpandJob } from "@/lib/admin";
 import { q, isPostgresAvailable } from "@/lib/db";
 import { store } from "@/lib/store";
+import { collectSignup, collectJobLead, collectBidActivity } from "@/lib/supabase";
 
 export type FormState = { error?: string; ok?: string; devCode?: string; phone?: string; jobId?: string } | null;
 
@@ -45,9 +46,62 @@ export async function requestOtpAction(_: FormState, f: FormData): Promise<FormS
     return { phone: r.phone, devCode: r.devCode, ok: "Code sent." };
   });
 }
+
+export async function signUpAction(_: FormState, f: FormData): Promise<FormState> {
+  return wrap(async () => {
+    const name = str(f, "name").trim();
+    const phone = str(f, "phone").trim();
+    const role = str(f, "role").trim() === "worker" ? "technician" : "customer";
+    const trade = str(f, "trade").trim();
+    const area = str(f, "area").trim();
+
+    if (!name || name.length < 2) {
+      throw new AppError("Please enter your real full name.");
+    }
+    if (!phone) {
+      throw new AppError("Please enter your Pakistani mobile number.");
+    }
+
+    const r = await requestOtp(phone);
+
+    // Collect lead/signup in Supabase
+    await collectSignup({ name, phone: r.phone, role, trade, area });
+
+    return { phone: r.phone, devCode: r.devCode, ok: "Verification code sent to your mobile." };
+  });
+}
+
 export async function verifyOtpAction(_: FormState, f: FormData): Promise<FormState> {
   return wrap(async () => {
     await verifyOtp(str(f, "phone"), str(f, "code"));
+
+    // If registration metadata was provided, initialize user profile
+    const name = str(f, "name").trim();
+    if (name) {
+      try {
+        const u = await requireUser();
+        await updateDisplayName(u, name);
+        if (str(f, "role") === "worker") {
+          const profileFd = new FormData();
+          profileFd.set("bio", `${name} · Independent Technician in Lahore`);
+          profileFd.set("experience_years", "3");
+          profileFd.set("accepting_bids", "on");
+          const trade = str(f, "trade");
+          if (trade === "electrical") {
+            profileFd.append("categories", "2");
+          } else if (trade === "both") {
+            profileFd.append("categories", "1");
+            profileFd.append("categories", "2");
+          } else {
+            profileFd.append("categories", "1");
+          }
+          await saveWorkerProfile(u, profileFd);
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
     revalidatePath("/", "layout");
     redirect("/");
   });
@@ -121,6 +175,20 @@ export async function createAndPublishJobAction(_: FormState, f: FormData): Prom
   return wrap(async () => {
     const u = await requireActive();
     const id = await createAndPublishJob(u, f);
+    try {
+      await collectJobLead({
+        title: str(f, "title"),
+        description: str(f, "description"),
+        category: str(f, "categoryId") === "2" ? "Electrical" : "Plumbing",
+        area: str(f, "areaId"),
+        budgetMin: Number(f.get("budgetMin")) || null,
+        budgetMax: Number(f.get("budgetMax")) || null,
+        customerPhone: u.phone,
+        addressText: str(f, "addressText"),
+      });
+    } catch {
+      // Non-blocking
+    }
     revalidatePath("/", "layout");
     return { ok: "Job posted and published successfully to Lahore technicians!", jobId: id };
   });
@@ -138,6 +206,17 @@ export async function submitBidAction(jobId: string, _: FormState, f: FormData):
   return wrap(async () => {
     const u = await requireWorker();
     await submitBid(u, jobId, f);
+    try {
+      await collectBidActivity({
+        jobId,
+        workerPhone: u.phone,
+        amount: Number(f.get("amount")) || 0,
+        timingText: str(f, "timingText"),
+        message: str(f, "message"),
+      });
+    } catch {
+      // Non-blocking
+    }
     revalidatePath(`/jobs/${jobId}`);
     return { ok: "Your bid was saved. You can edit or withdraw it until the customer chooses." };
   });
@@ -154,7 +233,8 @@ export async function withdrawBidAction(_: FormState, f: FormData): Promise<Form
 export async function acceptBidAction(_: FormState, f: FormData): Promise<FormState> {
   return wrap(async () => {
     const u = await requireActive();
-    await acceptBid(u, str(f, "bidId"));
+    await acceptBid(u, str(f, "bidId"), str(f, "exactAddress") || undefined);
+    revalidatePath("/", "layout");
     redirect(`/jobs/${str(f, "jobId")}`);
   });
 }

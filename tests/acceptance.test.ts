@@ -99,9 +99,10 @@ test("Acceptance Check 3: Worker can submit/edit/withdraw bid and customer compa
 test("Acceptance Check 4: Customer accepts only one bid; closes job and reveals private details only to participants", () => {
   const customerId = "u-demo-customer";
   const workerId = "u-demo-worker-elec";
+  const unselectedWorkerId = "u-demo-worker-plumb";
   const jobId = "job-demo-002";
 
-  // Re-submit bid to test acceptance
+  // Re-submit bid for primary worker
   store.submitBid(workerId, jobId, {
     amount: 3500,
     timingText: "Today 4 PM",
@@ -109,30 +110,49 @@ test("Acceptance Check 4: Customer accepts only one bid; closes job and reveals 
     inclusions: "Labour",
     exclusions: "Parts",
   });
+
+  // Submit competing bid from unselected worker
+  store.submitBid(unselectedWorkerId, jobId, {
+    amount: 3800,
+    timingText: "Tomorrow morning",
+    message: "Can do electrical & plumbing inspection.",
+    inclusions: "Full check",
+    exclusions: "Parts",
+  });
+
   const bids = store.listBidsForCustomer(customerId, jobId);
   const activeBid = bids.find(b => b.worker_id === workerId)!;
 
   // Before acceptance: private details are null for everyone
   assert.equal(store.getPrivateDetails(workerId, jobId), null, "Worker cannot see address before award");
+  assert.equal(store.getPrivateDetails(unselectedWorkerId, jobId), null, "Competing worker cannot see address");
   assert.equal(store.getPrivateDetails(customerId, jobId), null, "No booking before award");
 
-  // Accept bid atomically
-  const { bookingId } = store.acceptBid(customerId, activeBid.id);
+  // Accept bid atomically with exact address provided at hire time
+  const { bookingId } = store.acceptBid(customerId, activeBid.id, "House 12-B, Street 4, Sector Z, DHA Phase 5");
   assert.ok(bookingId);
 
   // Job is now awarded
   const job = store.jobs.get(jobId);
   assert.equal(job?.status, "awarded");
 
+  // Competing bid is rejected
+  const competingBid = Array.from(store.bids.values()).find(b => b.job_id === jobId && b.worker_id === unselectedWorkerId);
+  assert.equal(competingBid?.status, "rejected", "Unselected bid must be rejected");
+
   // Private details unlock ONLY for customer and awarded worker
   const workerPrivate = store.getPrivateDetails(workerId, jobId);
   assert.ok(workerPrivate, "Awarded worker gets private address and customer phone");
-  assert.ok(workerPrivate?.address_text.includes("DHA Phase 5"));
+  assert.equal(workerPrivate?.address_text, "House 12-B, Street 4, Sector Z, DHA Phase 5", "Awarded worker gets exact address provided at hire");
   assert.ok(workerPrivate?.customer_phone);
 
   const customerPrivate = store.getPrivateDetails(customerId, jobId);
   assert.ok(customerPrivate, "Customer gets worker contact details");
   assert.ok(customerPrivate?.worker_phone);
+
+  // CRITICAL PRIVACY CHECKS:
+  // Unselected bidder MUST NOT see address or contact details
+  assert.equal(store.getPrivateDetails(unselectedWorkerId, jobId), null, "Unselected bidder gets null (no leak)");
 
   // Third party stranger gets null (no leak)
   assert.equal(store.getPrivateDetails("u-stranger-worker", jobId), null);

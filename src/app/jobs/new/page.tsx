@@ -55,9 +55,9 @@ export default async function NewJob() {
             <p className="hint">City: Lahore. This is the only location workers will see.</p>
           </div>
           <div className="field">
-            <label htmlFor="addressText">Exact address / landmark (private)</label>
-            <input id="addressText" name="addressText" type="text" required minLength={5} maxLength={300} autoComplete="street-address" />
-            <p className="hint">Only the worker you choose will see this.</p>
+            <label htmlFor="addressText">Nearby landmark or sector (Optional)</label>
+            <input id="addressText" name="addressText" type="text" maxLength={300} placeholder="e.g. Near Packages Mall, Sector Y" />
+            <p className="hint">Keep it general. Exact house and street number will be requested only when you are ready to hire a technician.</p>
           </div>
           <div className="field">
             <label htmlFor="contactNote">Access note (private, optional)</label>

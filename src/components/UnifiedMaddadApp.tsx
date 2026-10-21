@@ -10,6 +10,8 @@ import {
   IconBell,
   IconShield,
   IconSettings,
+  IconArrowLeft,
+  IconWrench,
 } from "./icons";
 import {
   AppUser,
@@ -79,7 +81,7 @@ function resolveInitialTab(view?: string | null, user?: AppUser | null): TabType
   if (v === "join" || v === "worker" || v === "worker_dashboard" || v === "bids") return "worker_dashboard";
   if (v === "profile" || v === "worker_profile") return "worker_profile";
   if (v === "jobs" || v === "dashboard" || v === "customer" || v === "customer_dashboard") return "customer_dashboard";
-  if (v === "signin" || v === "login" || v === "auth") return "auth";
+  if (v === "signin" || v === "login" || v === "auth" || v === "signup" || v === "register") return "auth";
   if (v === "notifications" || v === "alerts") return "notifications";
   if (v === "moderation" || v === "admin") return "moderation";
   if (v === "settings" || v === "account") return "settings";
@@ -143,149 +145,66 @@ export default function UnifiedMaddadApp({
     }
   };
 
+  const realCount = useMemo(
+    () => initialPublicJobs.filter((j) => !j.is_demo).length,
+    [initialPublicJobs],
+  );
+  const sampleCount = useMemo(
+    () => initialPublicJobs.filter((j) => j.is_demo).length,
+    [initialPublicJobs],
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "80vh" }}>
       {/* Toast notifications */}
       <ToastRegion toasts={toasts} />
 
-      {/* Top tabs navigation with dark metallic surface & violet rim lighting */}
-      <nav className="top-tabs-nav" aria-label="Maddad Navigation Bar">
-        {/* Brand Chip */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginInlineEnd: 12 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: "linear-gradient(135deg, var(--violet-600) 0%, var(--violet-800) 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 800,
-              fontSize: "0.95rem",
-              color: "#fff",
-              boxShadow: "var(--glow-violet)",
-              border: "1px solid var(--violet-400)",
-            }}
-          >
-            مدد
-          </div>
-          <span style={{ fontWeight: 800, fontSize: "0.95rem", letterSpacing: "-0.3px", color: "var(--text-1)" }}>
-            Maddad <span className="font-urdu" style={{ color: "var(--violet-300)", fontSize: "0.95rem" }}>لاہور</span>
-          </span>
-        </div>
-
-        {/* Tab 1: Marketplace */}
-        <button
-          type="button"
-          onClick={() => switchTab("marketplace")}
-          className={`tab-btn ${activeTab === "marketplace" ? "active" : ""}`}
+      {/* Clean contextual view header when navigated away from the main marketplace */}
+      {activeTab !== "marketplace" && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 16px",
+            marginBottom: 20,
+            borderRadius: "var(--r-md)",
+            background: "var(--ink-1)",
+            border: "1px solid var(--line-soft)",
+            flexWrap: "wrap",
+            gap: 10,
+          }}
         >
-          <IconSearch size={15} />
-          <span>Marketplace (تمام کام)</span>
-          <span className="tab-badge tab-badge-purple">{initialPublicJobs.length}</span>
-        </button>
-
-        {/* Tab 2: Post a Job */}
-        <button
-          type="button"
-          onClick={() => switchTab("post")}
-          className={`tab-btn ${activeTab === "post" ? "active" : ""}`}
-        >
-          <IconPlus size={15} />
-          <span>Post a Job (کام درج کریں)</span>
-        </button>
-
-        {/* Tab 3: Customer Dashboard */}
-        <button
-          type="button"
-          onClick={() => switchTab("customer_dashboard")}
-          className={`tab-btn ${activeTab === "customer_dashboard" ? "active" : ""}`}
-        >
-          <IconBriefcase size={15} />
-          <span>My Jobs (کسٹمر)</span>
-          {initialCustomerJobs.length > 0 && (
-            <span className="tab-badge tab-badge-purple">{initialCustomerJobs.length}</span>
-          )}
-        </button>
-
-        {/* Tab 4: Worker Dashboard */}
-        <button
-          type="button"
-          onClick={() => switchTab("worker_dashboard")}
-          className={`tab-btn ${activeTab === "worker_dashboard" ? "active" : ""}`}
-        >
-          <IconZap size={15} />
-          <span>Technician Bids (کاریگر)</span>
-          {initialWorkerBids.length > 0 && (
-            <span className="tab-badge tab-badge-purple">{initialWorkerBids.length}</span>
-          )}
-        </button>
-
-        {/* Tab 5: Worker Profile */}
-        <button
-          type="button"
-          onClick={() => switchTab("worker_profile")}
-          className={`tab-btn ${activeTab === "worker_profile" ? "active" : ""}`}
-        >
-          <IconUser size={15} />
-          <span>Profile &amp; Trades (پروفائل)</span>
-        </button>
-
-        {/* Tab 6: Notifications */}
-        <button
-          type="button"
-          onClick={() => switchTab("notifications")}
-          className={`tab-btn ${activeTab === "notifications" ? "active" : ""}`}
-        >
-          <IconBell size={15} />
-          <span>Alerts (اطلاعات)</span>
-          {unreadCount > 0 && <span className="tab-badge tab-badge-red">{unreadCount}</span>}
-        </button>
-
-        {/* Tab 7: Moderation (Admin or Dev) */}
-        {(currentUser?.is_admin || process.env.NODE_ENV !== "production") && (
           <button
             type="button"
-            onClick={() => switchTab("moderation")}
-            className={`tab-btn ${activeTab === "moderation" ? "active" : ""}`}
-            style={{ borderColor: "rgba(245, 158, 11, 0.4)", color: "var(--amber-300)" }}
+            onClick={() => switchTab("marketplace")}
+            className="btn btn-ghost btn-sm"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
-            <IconShield size={15} />
-            <span>Moderation (ایڈمن)</span>
-            {initialReports.length > 0 && (
-              <span className="tab-badge" style={{ background: "var(--amber-400)", color: "#000" }}>
-                {initialReports.length}
+            <IconArrowLeft size={16} aria-hidden="true" />
+            <span>Back to Marketplace</span>
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span className="pill pill-violet" style={{ textTransform: "capitalize", fontWeight: 700 }}>
+              {activeTab === "customer_dashboard"
+                ? "Customer Dashboard"
+                : activeTab === "worker_dashboard"
+                ? "Technician Portal"
+                : activeTab === "worker_profile"
+                ? "Technician Profile"
+                : activeTab === "post"
+                ? "Post a Job"
+                : activeTab.replace("_", " ")}
+            </span>
+            {currentUser && (
+              <span className="meta hide-sm" style={{ margin: 0 }}>
+                {currentUser.display_name || currentUser.phone}
               </span>
             )}
-          </button>
-        )}
-
-        {/* Tab 8: Settings */}
-        <button
-          type="button"
-          onClick={() => switchTab("settings")}
-          className={`tab-btn ${activeTab === "settings" ? "active" : ""}`}
-        >
-          <IconSettings size={15} />
-          <span>Settings (سیٹنگز)</span>
-        </button>
-
-        {/* Tab 9: Account / Switcher */}
-        <button
-          type="button"
-          onClick={() => switchTab("auth")}
-          className={`tab-btn ${activeTab === "auth" ? "active" : ""}`}
-          style={{ marginInlineStart: "auto" }}
-        >
-          <IconUser size={15} />
-          <span>
-            {currentUser
-              ? currentUser.display_name || currentUser.phone
-              : "Sign In / Demo (لاگ ان)"}
-          </span>
-        </button>
-      </nav>
+          </div>
+        </div>
+      )}
 
       {/* Main Content by Tab */}
       <div className="tab-content">
@@ -294,7 +213,8 @@ export default function UnifiedMaddadApp({
           <div className="stack-md">
             <Hero
               user={currentUser}
-              totalOpen={initialPublicJobs.length}
+              realOpenCount={realCount}
+              sampleCount={sampleCount}
               onPost={() => switchTab("post")}
               onJoin={() => (currentUser?.is_worker ? switchTab("worker_dashboard") : switchTab("auth"))}
               compact={false}
@@ -308,6 +228,7 @@ export default function UnifiedMaddadApp({
               user={currentUser}
               ownJobIds={ownJobIds}
               onOpenJob={(job) => setActiveJobModal(job)}
+              onPost={() => switchTab("post")}
             />
 
             <TrustPanel />
@@ -420,11 +341,11 @@ export default function UnifiedMaddadApp({
           />
         )}
 
-        {/* VIEW 9: AUTH & DEMO PERSONA SWITCHER */}
+        {/* VIEW 9: AUTH / SIGN UP & SIGN IN */}
         {activeTab === "auth" && (
           <AuthView
             currentUser={currentUser}
-            demoAccounts={demoAccounts}
+            initialMode={initialView === "signin" || initialView === "login" ? "signin" : "signup"}
             onNavigateMarketplace={() => switchTab("marketplace")}
             showToast={(msg) => showToast(msg)}
           />
@@ -452,6 +373,75 @@ export default function UnifiedMaddadApp({
           }}
         />
       )}
+
+      {/* Mobile Bottom Dock for fast thumb-friendly navigation on small screens */}
+      <nav className="mobile-dock" aria-label="Mobile navigation">
+        <button
+          type="button"
+          className={`mobile-dock-btn ${activeTab === "marketplace" ? "is-active" : ""}`}
+          onClick={() => switchTab("marketplace")}
+          aria-label="Marketplace"
+        >
+          <IconSearch size={20} aria-hidden="true" />
+          <span>Market</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-dock-btn ${activeTab === "post" ? "is-active" : ""}`}
+          onClick={() => switchTab("post")}
+          aria-label="Post a Job"
+        >
+          <div className="mobile-dock-plus">
+            <IconPlus size={18} aria-hidden="true" />
+          </div>
+          <span>Post</span>
+        </button>
+
+        {currentUser?.is_worker ? (
+          <button
+            type="button"
+            className={`mobile-dock-btn ${activeTab === "worker_dashboard" ? "is-active" : ""}`}
+            onClick={() => switchTab("worker_dashboard")}
+            aria-label="Technician Portal"
+          >
+            <IconWrench size={20} aria-hidden="true" />
+            <span>Worker</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`mobile-dock-btn ${activeTab === "customer_dashboard" ? "is-active" : ""}`}
+            onClick={() => (currentUser ? switchTab("customer_dashboard") : switchTab("auth"))}
+            aria-label="My Dashboard"
+          >
+            <IconBriefcase size={20} aria-hidden="true" />
+            <span>My Jobs</span>
+          </button>
+        )}
+
+        <button
+          type="button"
+          className={`mobile-dock-btn ${activeTab === "notifications" ? "is-active" : ""}`}
+          onClick={() => switchTab("notifications")}
+          aria-label="Notifications"
+          style={{ position: "relative" }}
+        >
+          <IconBell size={20} aria-hidden="true" />
+          {unreadCount > 0 && <span className="mobile-dock-badge" aria-label={`${unreadCount} unread`} />}
+          <span>Alerts</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-dock-btn ${activeTab === "settings" || activeTab === "auth" ? "is-active" : ""}`}
+          onClick={() => (currentUser ? switchTab("settings") : switchTab("auth"))}
+          aria-label={currentUser ? "Account" : "Sign in"}
+        >
+          <IconUser size={20} aria-hidden="true" />
+          <span>{currentUser ? "Account" : "Sign In"}</span>
+        </button>
+      </nav>
     </div>
   );
 }
